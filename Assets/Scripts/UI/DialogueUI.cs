@@ -5,6 +5,7 @@ using TMPro;
 
 public class DialogueUI : MonoBehaviour
 {
+    public GameObject dialoguePanel;
     public TextMeshProUGUI speakerText;
     public TextMeshProUGUI dialogueText;
     public GameObject choiceContainer;
@@ -18,11 +19,16 @@ public class DialogueUI : MonoBehaviour
 
     public void ShowNode(DialogueNode node)
     {
-        Debug.Log($"[UI] ShowNode: {node.nodeId}, type={node.type}");
+        if (string.IsNullOrEmpty(node.nextNodeId) && (node.type != NodeType.Choice || node.choices.Count == 0))
+        {
+            HideDialoguePanel();
+            return;
+        }
 
-        // 기본적으로 choice는 텍스트를 비운다
         dialogueText.text = "";
         speakerText.text = node.speaker;
+        ShowDialoguePanel();
+
 
         switch (node.type)
         {
@@ -33,8 +39,6 @@ public class DialogueUI : MonoBehaviour
                 break;
 
             case NodeType.Choice:
-                Debug.Log($"[UI] Choice count: {node.choices.Count}");
-
                 if (node.choices == null || node.choices.Count == 0)
                 {
                     Debug.LogWarning("[UI] Choice node has no choices!");
@@ -50,8 +54,6 @@ public class DialogueUI : MonoBehaviour
 
     public void ShowChoices(List<DialogueChoice> choices)
     {
-        Debug.Log("[UI] ShowChoices called");
-
         choiceContainer.SetActive(true);
 
         foreach (Transform child in choiceContainer.transform)
@@ -76,5 +78,14 @@ public class DialogueUI : MonoBehaviour
 
         foreach (Transform child in choiceContainer.transform)
             Destroy(child.gameObject);
+    }
+
+    private void ShowDialoguePanel()
+    {
+        dialoguePanel.SetActive(true);
+    }
+    private void HideDialoguePanel()
+    {
+        dialoguePanel.SetActive(false);
     }
 }
