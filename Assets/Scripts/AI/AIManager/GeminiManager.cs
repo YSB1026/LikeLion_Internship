@@ -11,7 +11,8 @@ public class GeminiManager : MonoBehaviour
 
     private string GetApiUrl()
     {
-        string apiKey = APIKeyManager.Instance.GetAPIKey();
+        APIKeyManager keyData = Resources.Load<APIKeyManager>("APIKeyData");
+        string apiKey = keyData.GetAPIKey();
         if (string.IsNullOrEmpty(apiKey)) return null;
 
         apiKey = apiKey.Trim();
@@ -40,9 +41,9 @@ public class GeminiManager : MonoBehaviour
                 new Content
                 {
                     role = "user",
-                    parts = new Part[] 
-                    { 
-                        new Part { text = $"[System Instruction]\n{systemInstruction}\n\n[User Message]\n{userMessage}" } 
+                    parts = new Part[]
+                    {
+                        new Part { text = $"[System Instruction]\n{systemInstruction}\n\n[User Message]\n{userMessage}" }
                     }
                 }
             }
@@ -105,7 +106,7 @@ public class GeminiRequest
 [Serializable]
 public class Content
 {
-    public string role; 
+    public string role;
     public Part[] parts;
 }
 

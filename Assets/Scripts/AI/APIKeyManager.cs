@@ -1,17 +1,11 @@
 using UnityEngine;
 
-public class APIKeyManager : MonoBehaviour
+[CreateAssetMenu(fileName = "APIKeyData", menuName = "AI_APIKEY/APIKeySO")]
+public class APIKeyManager : ScriptableObject
 {
-    public static APIKeyManager Instance;
-
+    // 2. 인스펙터에서 값을 입력받습니다.
     [SerializeField]
     private string geminiApiKey;
-
-    private void Awake()
-    {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
-    }
 
     public string GetAPIKey()
     {

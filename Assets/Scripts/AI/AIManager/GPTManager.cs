@@ -16,7 +16,9 @@ public class GPTManager : MonoBehaviour
         string npcPrompt,
         Action<string> onComplete)
     {
-        string apiKey = APIKeyManager.Instance.GetAPIKey();
+        APIKeyManager keyData = Resources.Load<APIKeyManager>("APIKeyData");
+        string apiKey = keyData.GetAPIKey();
+        
         if (string.IsNullOrEmpty(apiKey))
         {
             onComplete?.Invoke("API 키가 설정되지 않았습니다.");
