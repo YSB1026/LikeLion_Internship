@@ -3,37 +3,32 @@ using UnityEngine;
 [RequireComponent(typeof(Collider2D))]
 public class PlayerInteraction : MonoBehaviour
 {
-    PlayerInputHandler input;
-    NPCController currentNPC;
-    void Start()
+    private PlayerInputHandler input;
+    private NPCController currentNPC;
+
+    private void Start()
     {
         input = GetComponentInParent<PlayerInputHandler>();
     }
 
-    void Update()
+    private void Update()
     {
-        if (input.InteractPressed && currentNPC != null)
+        if (input.InteractPressed && input.CanInteract && currentNPC != null)
         {
             currentNPC.Interact();
             input.ConsumeInteract();
         }
     }
 
-    void OnTriggerEnter2D(Collider2D other)
+    private void OnTriggerEnter2D(Collider2D other)
     {
         if (other.CompareTag("NPC"))
-        {
             currentNPC = other.GetComponent<NPCController>();
-        }
     }
-    void OnTriggerExit2D(Collider2D other)
+
+    private void OnTriggerExit2D(Collider2D other)
     {
-        if (other.CompareTag("NPC"))
-        {
-            if (other.GetComponent<NPCController>() == currentNPC)
-            {
-                currentNPC = null;
-            }
-        }
+        if (other.CompareTag("NPC") && other.GetComponent<NPCController>() == currentNPC)
+            currentNPC = null;
     }
 }

@@ -2,30 +2,41 @@ using UnityEngine;
 
 public class NPCController : MonoBehaviour
 {
-    public string currentNodeId = "START";
+    private string currentNodeId = "START";
+    private TextAsset dialogueFile;
     public NPCProfile npcProfile;
-    TextAsset asset = null;
-    public void Start()
+    private void Start()
     {
         if (npcProfile == null)
         {
             Debug.LogError("NPC Profile not found!");
             return;
         }
-        asset = Resources.Load<TextAsset>($"Dialogues/{npcProfile.currentDialogueFile}");
+
+        // 초기 MD 로드
+        LoadDialogueAsset();
     }
+
     public void Interact()
     {
-        if (asset == null)
+        if (!LoadDialogueAsset())
         {
-            Debug.LogError("MD file not found!");
+            Debug.LogError($"MD file not found for {npcProfile.npcName}: {npcProfile.currentDialogueFile}");
             return;
         }
 
         DialogueParser parser = new DialogueParser();
-        var nodes = parser.Parse(asset.text);
+        var nodes = parser.Parse(dialogueFile.text);
 
+        DialogueManager.Instance.currentNPCProfile = npcProfile;
         DialogueManager.Instance.LoadDialogue(nodes);
         DialogueManager.Instance.StartDialogue(currentNodeId);
+    }
+
+    private bool LoadDialogueAsset()
+    {
+        string fileName = npcProfile.currentDialogueFile.Trim();
+        dialogueFile = Resources.Load<TextAsset>($"Dialogues/{fileName}");
+        return dialogueFile != null;
     }
 }

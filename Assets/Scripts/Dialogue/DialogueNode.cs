@@ -4,18 +4,30 @@ using UnityEngine;
 [System.Serializable]
 public class DialogueNode
 {
-    public string nodeId; // 노드 ID
-    public NodeType type; // 노드 타입 (Fixed, AI, Choice)
+    public string nodeId;
+    public NodeType type;
 
-    // 공통
-    public string speaker; // 화자 이름
-    public string emotion; //감정 상태
-    public int trustDelta; //신뢰도 변화량
+    [Header("기본 정보")]
+    public string speaker;
+    public string emotion;
+    public int trustDelta;
+    public int dayId;
 
-    // Fixed / AI
-    public string text; // 대사 텍스트
-    public string nextNodeId; //다음 노드 ID
+    [Header("브랜치 정보")]
+    public string branchId;      // 루트 브랜치 ID
+    public bool isRootBranch;    // 루트 여부
 
-    // Choice
-    public List<DialogueChoice> choices; // 선택지 목록
+    [Header("상황 설명 (AI용)")]
+    [TextArea(2,5)]
+    public string situationDescription;
+
+    [Header("대사 정보")]
+    [TextArea(2,5)]
+    public string text;
+    public string nextNodeId;
+
+    [Header("선택지")]
+    public List<DialogueChoice> choices;
+
+    public bool IsAINode => type == NodeType.AI;
 }

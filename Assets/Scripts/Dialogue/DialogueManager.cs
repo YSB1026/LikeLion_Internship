@@ -1,84 +1,244 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
+
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance;
-    public DialogueUI dialogueUI;
+
+    public NPCProfile currentNPCProfile;
+
+    private DialogueUI dialogueUI;
+    private PlayerInputHandler playerInput;
+
     private Dictionary<string, DialogueNode> nodes;
-    private DialogueNode currentNode;
-    public DialogueContext Context { get; private set; }
+    private DialogueNode currentNodeInternal;
+
+    public DialogueNode CurrentNode => currentNodeInternal;
+    public DialogueContext Context { get; private set; } = new DialogueContext();
+
+    private string startNodeId = "START";
+    private string currentRootBranchId;
+
+    /* ────────────────────────────── */
+    /* Unity Lifecycle */
+    /* ────────────────────────────── */
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         Instance = this;
-        Context = new DialogueContext();
+        DontDestroyOnLoad(gameObject);
+
+        dialogueUI = FindFirstObjectByType<DialogueUI>();
+        playerInput = FindFirstObjectByType<PlayerInputHandler>();
     }
+
+    /* ────────────────────────────── */
+    /* Dialogue Load */
+    /* ────────────────────────────── */
 
     public void LoadDialogue(Dictionary<string, DialogueNode> parsedNodes)
     {
         nodes = parsedNodes;
     }
 
-    public void StartDialogue(string startNodeId)
+    public void StartDialogue(string startId)
     {
-        if (!nodes.ContainsKey(startNodeId))
+        if (nodes == null || !nodes.ContainsKey(startId))
         {
-            Debug.LogError($"Start node not found: {startNodeId}");
+            Debug.LogError($"Start node not found: {startId}");
             return;
         }
 
-        currentNode = nodes[startNodeId];
-        EnterNode(nodes[startNodeId]);
+        startNodeId = startId;
+        currentRootBranchId = null;
+
+        playerInput?.SetInteractEnabled(false);
+        EnterNode(nodes[startId]);
     }
 
-    public void Advance()
+    /* ────────────────────────────── */
+    /* Node Flow */
+    /* ────────────────────────────── */
+
+    private void EnterNode(DialogueNode node)
     {
-        if (string.IsNullOrEmpty(currentNode.nextNodeId))
+        if (node == null)
         {
-            EndDialogue();
+            Debug.LogError("EnterNode: node is null");
             return;
         }
 
-        GoToNode(currentNode.nextNodeId);
-    }
+        currentNodeInternal = node;
 
-    private void EndDialogue()
-    {
-        Debug.Log("Dialogue Ended");
-    }
+        ApplyNodeEffect(node);
 
-    void ApplyNodeEffect(DialogueNode node)
-    {
-        if (node.trustDelta != 0)
+        dialogueUI?.ShowNode(node);
+        dialogueUI?.SetAIInputActive(node.type == NodeType.AI);
+
+        if (IsEndNode(node))
         {
-            Context.AddTrust(node.trustDelta);
+            HandleBranchComplete();
+        }
+    }
+
+    private bool IsEndNode(DialogueNode node)
+    {
+        return node.type == NodeType.End
+            || (string.IsNullOrEmpty(node.nextNodeId)
+                && (node.choices == null || node.choices.Count == 0));
+    }
+
+    private void GoToNode(string nodeId)
+    {
+        if (string.IsNullOrEmpty(nodeId))
+        {
+            Debug.LogWarning("GoToNode: nodeId is null or empty");
+            return;
         }
 
-        // 추후 flag 추가
-    }
-
-    #region UI 연동
-
-    public void SelectChoice(DialogueChoice choice)
-    {
-        GoToNode(choice.nextNodeId);
-    }
-    void GoToNode(string nodeId)
-    {
         if (!nodes.ContainsKey(nodeId))
         {
             Debug.LogError($"Node not found: {nodeId}");
             return;
         }
 
-        currentNode = nodes[nodeId];
-        EnterNode(currentNode);
+        EnterNode(nodes[nodeId]);
     }
-    void EnterNode(DialogueNode node)
-    {
-        ApplyNodeEffect(node);
-        dialogueUI.ShowNode(node);
-    }
-    #endregion
-}
 
+    public void SelectChoice(DialogueChoice choice)
+    {
+        if (choice == null)
+        {
+            Debug.LogWarning("SelectChoice: choice is null");
+            return;
+        }
+
+        // START에서 선택된 nextNodeId가 루트 브랜치
+        if (currentNodeInternal != null &&
+            currentNodeInternal.nodeId == startNodeId)
+        {
+            currentRootBranchId = choice.nextNodeId;
+            Debug.Log($"루트 브랜치 선택됨: {currentRootBranchId}");
+        }
+
+        GoToNode(choice.nextNodeId);
+    }
+
+    public void Advance()
+    {
+        if (currentNodeInternal == null){
+            EndDialogue();
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(currentNodeInternal.nextNodeId))
+        {
+            GoToNode(currentNodeInternal.nextNodeId);
+        }
+        else
+        {
+            HandleBranchComplete();
+        }
+    }
+
+    private void ApplyNodeEffect(DialogueNode node)
+    {
+        if (node.trustDelta != 0)
+        {
+            Context.AddTrust(node.trustDelta);
+            Debug.Log($"Trust 변화: {node.trustDelta}");
+        }
+    }
+
+    /* ────────────────────────────── */
+    /* Branch Completion */
+    /* ────────────────────────────── */
+
+    private void HandleBranchComplete()
+    {
+        // Debug.Log("HandleBranchComplete 호출");
+        // Debug.Log($"현재 Root Branch ID: {currentRootBranchId}, NPC: {(currentNPCProfile != null ? currentNPCProfile.npcName : "null")}");
+        if (!string.IsNullOrEmpty(currentRootBranchId) &&
+            currentNPCProfile != null)
+        {
+            
+            StoryDayController.Instance?
+                .RegisterCompletedBranch(
+                    currentNPCProfile,
+                    currentRootBranchId
+                );
+        }
+        else
+        {
+            Debug.LogWarning("BranchComplete 조건 불충족 (rootBranchId 또는 NPC null)");
+        }
+
+        currentRootBranchId = null;
+        EndDialogue();
+    }
+
+    private void EndDialogue()
+    {
+        currentNodeInternal = null;
+
+        dialogueUI?.ResetAllUI(StoryDayController.Instance.isDayCompleted);
+        playerInput?.SetInteractEnabled(true);
+    }
+
+    /* ────────────────────────────── */
+    /* Root Branch Set */
+    /* ────────────────────────────── */
+
+    public HashSet<string> GetRootBranchSet()
+    {
+        HashSet<string> result = new HashSet<string>();
+
+        if (!nodes.ContainsKey(startNodeId))
+            return result;
+
+        var startNode = nodes[startNodeId];
+
+        if (startNode.choices == null)
+            return result;
+
+        foreach (var choice in startNode.choices)
+        {
+            result.Add(choice.nextNodeId);
+        }
+
+        return result;
+    }
+
+    /* ────────────────────────────── */
+    /* AI 처리 */
+    /* ────────────────────────────── */
+
+    public async Task RequestAIResponse(string playerText)
+    {
+        if (currentNodeInternal == null ||
+            currentNodeInternal.type != NodeType.AI)
+            return;
+
+        if (currentNPCProfile == null)
+        {
+            Debug.LogError("NPCProfile이 설정되지 않았습니다.");
+            return;
+        }
+
+        string aiResponse = await AIResponsePipeline.Instance.Process(
+            currentNPCProfile,
+            currentNodeInternal,
+            Context,
+            playerText
+        );
+
+        dialogueUI?.DisplayAIResponse(playerText, aiResponse);
+    }
+}
